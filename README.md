@@ -1,10 +1,10 @@
-# Folio (EasyStudy)
+# Folio
 
 **Turn any PDF into swipeable True/False exam cards, generated with AI.**
 
 Upload your notes, books or papers and Folio generates statements about the key concepts. Swipe right for *true*, left for *false*, and get instant feedback with the exact snippet from your document that justifies the answer.
 
-> ⚠️ This is a **prototype**. It is designed to be easy to run and easy to migrate to production (see [Roadmap to production](#roadmap-to-production)), but it is not production-ready as is.
+>  This is a **prototype**. It is designed to be easy to run and easy to migrate to production (see [Roadmap to production](#roadmap-to-production)), but it is not production-ready as is.
 
 ## Features
 
@@ -169,12 +169,3 @@ Places in the code marked with `# PROD:` show what to change:
 - [ ] Add **rate limiting** and upload size limits
 - [ ] Real **chunking** instead of truncating to ~40k characters
 - [ ] Validate the `/answer` payload with a Pydantic model
-
-## Security notes
-
-- The API key is read **only** from the `GROQ_API_KEY` environment variable. `.env` is git-ignored and docker-ignored; commit only `.env.example`.
-- If you ever commit a key by mistake, **revoke it** in the Groq console immediately; removing it from git history is not enough.
-
-## License
-
-No license has been specified yet. Add a `LICENSE` file (e.g. MIT) before publishing if you want others to be able to use the code.
