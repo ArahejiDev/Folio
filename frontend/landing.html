@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Folio — De PDF a tarjetas de examen en segundos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12141C;
+    --panel: #1B1E2A;
+    --panel-line: #2A2E40;
+    --paper: #F2EFE9;
+    --muted: #9AA0B4;
+    --mint: #5EEAD4;
+    --coral: #FF6B6B;
+    --gold: #E8B44B;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--ink);
+    color: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Background grain ---------- */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ---------- Navigation ---------- */
+  nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    background: rgba(18, 20, 28, 0.7);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(42, 46, 64, 0.5);
+  }
+
+  .nav-logo {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--gold);
+    text-decoration: none;
+  }
+
+  .nav-links {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s ease;
+  }
+
+  .nav-links a:hover {
+    color: var(--paper);
+  }
+
+  .nav-cta {
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    border-radius: 999px;
+    padding: 10px 24px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  .nav-cta:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+  }
+
+  /* ---------- Hero ---------- */
+  .hero {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 120px 24px 80px;
+    z-index: 1;
+  }
+
+  .hero-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    padding: 8px 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 32px;
+    background: var(--panel);
+  }
+
+  .hero-badge .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--mint);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .hero h1 {
+    font-size: clamp(36px, 6vw, 72px);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    max-width: 800px;
+    margin-bottom: 24px;
+  }
+
+  .hero h1 span {
+    color: var(--gold);
+  }
+
+  .hero p.lead {
+    font-size: clamp(17px, 2.2vw, 22px);
+    color: var(--muted);
+    max-width: 560px;
+    margin-bottom: 40px;
+    line-height: 1.55;
+  }
+
+  .hero-cta-group {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 64px;
+  }
+
+  .btn-primary {
+    background: var(--gold);
+    color: var(--ink);
+    border: none;
+    border-radius: 999px;
+    padding: 16px 36px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow: 0 4px 24px rgba(232, 180, 75, 0.25);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(232, 180, 75, 0.35);
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--paper);
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    padding: 16px 36px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: border-color 0.2s ease, color 0.2s ease;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--paper);
+    color: var(--paper);
+  }
+
+  /* ---------- Card Preview ---------- */
+  .card-preview {
+    position: relative;
+    width: min(380px, 85vw);
+    aspect-ratio: 3/4;
+    perspective: 1200px;
+  }
+
+  .card-preview-inner {
+    width: 100%;
+    height: 100%;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 24px;
+    padding: 36px 28px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    box-shadow:
+      0 24px 60px rgba(0,0,0,0.4),
+      0 0 0 1px rgba(255,255,255,0.03) inset;
+    transform: rotateX(8deg) rotateY(-4deg);
+    transition: transform 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%, 100% { transform: rotateX(8deg) rotateY(-4deg) translateY(0); }
+    50% { transform: rotateX(8deg) rotateY(-4deg) translateY(-12px); }
+  }
+
+  .card-preview:hover .card-preview-inner {
+    transform: rotateX(0deg) rotateY(0deg) translateY(-8px);
+  }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .card-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--muted);
+  }
+
+  .card-counter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 4px 10px;
+  }
+
+  .card-question {
+    font-size: 22px;
+    font-weight: 600;
+    line-height: 1.4;
+    text-align: left;
+  }
+
+  .card-buttons {
+    display: flex;
+    gap: 16px;
+    justify-content: center;
+  }
+
+  .card-btn {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-line);
+    background: var(--ink);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .card-btn.x { color: var(--coral); }
+  .card-btn.check { color: var(--mint); }
+
+  /* ---------- How it works ---------- */
+  .section {
+    position: relative;
+    z-index: 1;
+    padding: 100px 24px;
+    max-width: 1000px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    margin-bottom: 64px;
+  }
+
+  .section-header .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--gold);
+    margin-bottom: 12px;
+  }
+
+  .section-header h2 {
+    font-size: clamp(28px, 4vw, 44px);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 24px;
+  }
+
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    transition: transform 0.2s ease, border-color 0.2s ease;
+  }
+
+  .step:hover {
+    transform: translateY(-4px);
+    border-color: var(--gold);
+  }
+
+  .step-number {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .step-number::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--panel-line);
+  }
+
+  .step h3 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 10px;
+  }
+
+  .step p {
+    color: var(--muted);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  /* ---------- Features ---------- */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+  }
+
+  .feature {
+    padding: 28px;
+    border-radius: var(--radius);
+    border: 1px solid var(--panel-line);
+    background: rgba(27, 30, 42, 0.5);
+  }
+
+  .feature-icon {
+    font-size: 28px;
+    margin-bottom: 14px;
+    display: block;
+  }
+
+  .feature h3 {
+    font-size: 17px;
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .feature p {
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ---------- CTA Section ---------- */
+  .cta-section {
+    text-align: center;
+    padding: 100px 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  .cta-box {
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 24px;
+    padding: 56px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .cta-box::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 50% 50%, rgba(232, 180, 75, 0.06), transparent 60%);
+    pointer-events: none;
+  }
+
+  .cta-box h2 {
+    font-size: clamp(24px, 3.5vw, 36px);
+    font-weight: 700;
+    margin-bottom: 12px;
+    position: relative;
+  }
+
+  .cta-box p {
+    color: var(--muted);
+    font-size: 17px;
+    margin-bottom: 32px;
+    position: relative;
+  }
+
+  /* ---------- Footer ---------- */
+  footer {
+    border-top: 1px solid var(--panel-line);
+    padding: 40px 32px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+    position: relative;
+    z-index: 1;
+  }
+
+  footer .mono {
+    color: var(--gold);
+    font-weight: 600;
+  }
+
+  /* ---------- Mobile nav ---------- */
+  @media (max-width: 640px) {
+    nav {
+      padding: 16px 20px;
+    }
+    .nav-links a {
+      display: none;
+    }
+    .hero {
+      padding: 100px 20px 60px;
+    }
+    .section {
+      padding: 60px 20px;
+    }
+    .cta-box {
+      padding: 40px 24px;
+    }
+  }
+</style>
+<base target="_blank">
+</head>
+<body>
+
+<nav>
+  <a href="#" class="nav-logo">Folio</a>
+  <div class="nav-links">
+    <a href="#como-funciona">Cómo funciona</a>
+    <a href="#caracteristicas">Características</a>
+    <a href="/app" class="nav-cta">Abrir app</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="hero-badge">
+    <span class="dot"></span>
+    <span>Powered by IA</span>
+  </div>
+  <h1>Convierte cualquier <span>PDF</span> en tarjetas de examen</h1>
+  <p class="lead">
+    Sube tus apuntes, libros o artículos. Folio genera automáticamente preguntas tipo test para que repases de forma activa antes del examen.
+  </p>
+  <div class="hero-cta-group">
+    <a href="/app" class="btn-primary">
+      Empezar ahora
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+    <a href="#como-funciona" class="btn-secondary">Ver cómo funciona</a>
+  </div>
+
+  <div class="card-preview">
+    <div class="card-preview-inner">
+      <div class="card-top">
+        <span class="card-tag">¿Verdadero o falso?</span>
+        <span class="card-counter">Q 03/12</span>
+      </div>
+      <div class="card-question">
+        La fotosíntesis ocurre exclusivamente durante el día porque la luz es indispensable para la fase luminosa.
+      </div>
+      <div class="card-buttons">
+        <div class="card-btn x">✕</div>
+        <div class="card-btn check">✓</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="como-funciona">
+  <div class="section-header">
+    <div class="eyebrow">Cómo funciona</div>
+    <h2>Tres pasos. Cero complicaciones.</h2>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-number">01</div>
+      <h3>Sube tu PDF</h3>
+      <p>Arrastra o selecciona cualquier documento PDF: apuntes, libros, artículos científicos, transparencias… Lo que sea.</p>
+    </div>
+    <div class="step">
+      <div class="step-number">02</div>
+      <h3>La IA genera las preguntas</h3>
+      <p>Nuestro modelo analiza el contenido y crea automáticamente preguntas de verdadero o falso basadas en los conceptos clave.</p>
+    </div>
+    <div class="step">
+      <div class="step-number">03</div>
+      <h3>Repasa con el mazo</h3>
+      <p>Desliza las tarjetas como en una app de citas: izquierda para falso, derecha para verdadero. Aprende de tus errores al instante.</p>
+    </div>
+  </div>
+</section>
+
+<section class="section" id="caracteristicas">
+  <div class="section-header">
+    <div class="eyebrow">Características</div>
+    <h2>Diseñado para estudiar de verdad</h2>
+  </div>
+  <div class="features">
+    <div class="feature">
+      <span class="feature-icon">⚡</span>
+      <h3>Generación instantánea</h3>
+      <p>Las preguntas se generan en tiempo real mientras lees. No esperes minutos para empezar a repasar.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🎯</span>
+      <h3>Preguntas contextualizadas</h3>
+      <p>Cada pregunta está anclada a un fragmento real del documento. Si fallas, ves exactamente de dónde venía la respuesta.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📚</span>
+      <h3>Biblioteca personal</h3>
+      <p>Todos tus documentos y mazos guardados en un solo lugar. Vuelve a repasar cuando quieras sin volver a subir nada.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">📱</span>
+      <h3>Funciona en cualquier dispositivo</h3>
+      <p>Desde el móvil, tablet o portátil. La interfaz se adapta perfectamente para estudiar donde prefieras.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🧠</span>
+      <h3>Aprendizaje activo</h3>
+      <p>El formato V/F fuerza a tu cerebro a tomar decisiones rápidas, reforzando la retención mucho más que leer pasivamente.</p>
+    </div>
+    <div class="feature">
+      <span class="feature-icon">🔒</span>
+      <h3>Sin registro obligatorio</h3>
+      <p>Empieza a usar Folio inmediatamente. No necesitas crear cuenta ni dar tu email para probarlo.</p>
+    </div>
+  </div>
+</section>
+
+<section class="cta-section">
+  <div class="cta-box">
+    <h2>¿Listo para aprobar?</h2>
+    <p>Sube tu primer PDF y descubre cuánto más rápido retienes la información repasando con tarjetas.</p>
+    <a href="/app" class="btn-primary">
+      Crear mi primer mazo
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+    </a>
+  </div>
+</section>
+
+<footer>
+  <p><span class="mono">Folio</span> — De PDF a tarjetas de examen.</p>
+</footer>
+
+</body>
+</html>

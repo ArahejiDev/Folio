@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Folio — tarjetas de estudio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #12141C;
+    --panel: #1B1E2A;
+    --panel-line: #2A2E40;
+    --paper: #F2EFE9;
+    --muted: #9AA0B4;
+    --mint: #5EEAD4;
+    --coral: #FF6B6B;
+    --gold: #E8B44B;
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Inter', sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-image:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
+  }
+
+  .mono { font-family: 'IBM Plex Mono', monospace; }
+
+  /* ---------- Pantalla de biblioteca (grid de tarjetas) ---------- */
+
+  #library-screen {
+    display: none;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 24px 60px;
+  }
+
+  #library-screen.active { display: flex; }
+
+  .library-header {
+    width: min(720px, 100%);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
+  .library-header h1 {
+    font-size: clamp(22px, 4vw, 30px);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .library-empty {
+    color: var(--muted);
+    font-size: 14px;
+    margin-top: 60px;
+    text-align: center;
+  }
+
+  .library-grid {
+    width: min(720px, 100%);
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 14px;
+  }
+
+  .doc-card {
+    aspect-ratio: 1 / 1;
+    border: 1px solid var(--panel-line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    cursor: pointer;
+    text-align: left;
+    color: var(--paper);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .doc-card:hover { transform: translateY(-2px); border-color: var(--gold); }
+
+  .doc-card .doc-icon {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .doc-card .doc-icon.ready { color: var(--mint); }
+  .doc-card .doc-icon.processing { color: var(--gold); }
+  .doc-card .doc-icon.failed { color: var(--coral); }
+
+  .doc-card .doc-name {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: #FFFFFF;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .doc-card .doc-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .doc-card.add-card {
+    align-items: center;
+    justify-content: center;
+    border-style: dashed;
+  }
+
+  .doc-card.add-card .plus {
+    font-size: 34px;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .doc-card.add-card .doc-name { color: var(--muted); font-weight: 500; }
+
+  .back-link {
+    position: absolute;
+    top: 28px;
+    left: 24px;
+    z-index: 20;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+    background: none;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    padding: 6px 4px;
+  }
+
+  .back-link:hover { color: var(--paper); }
+
+  /* ---------- Pantalla de subida ---------- */
+
+  #upload-screen {
+    display: none;
+    min-height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    text-align: center;
+    position: relative;
+  }
+
+  #upload-screen.active { display: flex; }
+
+  .brand {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 18px;
+  }
+
+  #upload-screen h1 {
+    font-size: clamp(28px, 5vw, 44px);
+    font-weight: 700;
+    line-height: 1.15;
+    max-width: 560px;
+    margin: 0 0 12px;
+    letter-spacing: -0.01em;
+  }
+
+  #upload-screen p.sub {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 420px;
+    margin: 0 0 36px;
+  }
+
+  .dropzone {
+    width: min(440px, 90vw);
+    border: 1px dashed var(--panel-line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    padding: 36px 24px;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+
+  .dropzone:hover, .dropzone.drag-over {
+    border-color: var(--gold);
+    background: #20233240;
+  }
+
+  .dropzone input { display: none; }
+
+  .dropzone .icon {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  .dropzone .filename {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--paper);
+  }
+
+  button.primary {
+    margin-top: 24px;
+    background: var(--gold);
+    color: #12141C;
+    border: none;
+    border-radius: 999px;
+    padding: 13px 30px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+
+  button.primary:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+  }
+
+  button.primary:not(:disabled):hover {
+    transform: translateY(-1px);
+  }
+
+  button.secondary {
+    margin-top: 10px;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--panel-line);
+    border-radius: 999px;
+    padding: 11px 26px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, color 0.15s ease;
+  }
+
+  button.secondary:hover {
+    border-color: var(--paper);
+    color: var(--paper);
+  }
+
+  #status-line {
+    margin-top: 18px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    color: var(--muted);
+    min-height: 18px;
+  }
+
+  #error-line {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--coral);
+    min-height: 16px;
+  }
+
+  /* ---------- Pantalla de estudio (mazo swipe V/F) ---------- */
+
+  #study-screen {
+    display: none;
+    height: 100dvh;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 24px;
+    overflow: hidden;
+  }
+
+  #study-screen.active { display: flex; }
+
+  .deck-header {
+    position: absolute;
+    top: 28px;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: center;
+    z-index: 6;
+  }
+
+  .stamp {
+    border: 1px solid var(--panel-line);
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--gold);
+    letter-spacing: 0.06em;
+  }
+
+  .deck {
+    position: relative;
+    width: min(420px, 90vw);
+    height: min(560px, 68dvh);
+  }
+
+  .swipe-card {
+    position: absolute;
+    inset: 0;
+    background: var(--panel);
+    border: 1px solid var(--panel-line);
+    border-radius: 20px;
+    padding: 32px 26px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    box-shadow: 0 20px 45px rgba(0,0,0,0.35);
+    cursor: grab;
+    touch-action: pan-y;
+    user-select: none;
+    will-change: transform;
+  }
+
+  .swipe-card:active { cursor: grabbing; }
+
+  .swipe-card.snap-back { transition: transform 0.28s cubic-bezier(.2,.8,.3,1); }
+  .swipe-card.fly-out { transition: transform 0.35s ease-out, opacity 0.35s ease-out; opacity: 0; }
+  .swipe-card.shake { transition: transform 0.3s ease; }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--muted);
+    margin-bottom: 16px;
+  }
+
+  .statement-text {
+    font-size: clamp(20px, 3.6vw, 26px);
+    font-weight: 600;
+    line-height: 1.4;
+  }
+
+  .overlay-label {
+    position: absolute;
+    top: 26px;
+    padding: 6px 14px;
+    border: 3px solid;
+    border-radius: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: 0.08em;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .overlay-true {
+    left: 22px;
+    color: var(--mint);
+    border-color: var(--mint);
+    transform: rotate(-10deg);
+  }
+
+  .overlay-false {
+    right: 22px;
+    color: var(--coral);
+    border-color: var(--coral);
+    transform: rotate(10deg);
+  }
+
+  /* panel que sustituye el contenido de la tarjeta cuando fallas */
+  .feedback-panel {
+    position: absolute;
+    inset: 0;
+    background: var(--panel);
+    border: 1px solid var(--coral);
+    border-radius: 20px;
+    padding: 30px 26px;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .feedback-panel.show { display: flex; }
+
+  .feedback-verdict {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--coral);
+    margin-bottom: 14px;
+  }
+
+  .feedback-fragment {
+    font-size: 15.5px;
+    line-height: 1.55;
+    color: var(--paper);
+    margin-bottom: 20px;
+  }
+
+  .feedback-continue {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  /* toast breve de acierto */
+  .correct-toast {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    background: #143631e6;
+    border-radius: 20px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+  }
+
+  .correct-toast.show { opacity: 1; }
+
+  .correct-toast .check {
+    font-size: 46px;
+    color: var(--mint);
+  }
+
+  .correct-toast .label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mint);
+  }
+
+  /* ---------- Tarjeta de progreso mientras se generan las tarjetas ---------- */
+
+  .progress-card {
+    align-items: center;
+    text-align: center;
+  }
+
+  .progress-spinner {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    border: 3px solid var(--panel-line);
+    border-top-color: var(--gold);
+    margin: 0 auto 22px;
+    animation: spin 0.9s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .progress-track {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--panel-line);
+    overflow: hidden;
+    margin-top: 6px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--gold);
+    border-radius: 999px;
+    transition: width 0.5s ease;
+    width: 0%;
+  }
+
+  .progress-label {
+    margin-top: 12px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .swipe-buttons {
+    display: flex;
+    gap: 26px;
+    margin-top: 30px;
+  }
+
+  .swipe-btn {
+    width: 58px;
+    height: 58px;
+    border-radius: 50%;
+    border: 1px solid var(--panel-line);
+    background: var(--panel);
+    font-size: 24px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.15s ease, border-color 0.15s ease;
+  }
+
+  .swipe-btn:hover { transform: translateY(-2px); }
+
+  .swipe-btn.false { color: var(--coral); }
+  .swipe-btn.false:hover { border-color: var(--coral); }
+  .swipe-btn.true { color: var(--mint); }
+  .swipe-btn.true:hover { border-color: var(--mint); }
+
+  /* ---------- Tarjeta final de resumen ---------- */
+
+  .summary-card {
+    width: min(420px, 90vw);
+    text-align: center;
+  }
+
+  .summary-score {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: clamp(56px, 12vw, 88px);
+    font-weight: 600;
+    color: var(--gold);
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .summary-label {
+    color: var(--muted);
+    font-size: 15px;
+    margin-bottom: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div id="library-screen">
+  <div class="library-header">
+    <h1 class="mono">Folio</h1>
+  </div>
+  <div class="library-grid" id="library-grid"><!-- tarjetas insertadas por JS --></div>
+  <div class="library-empty" id="library-empty" style="display:none;">
+    Todavia no tienes ningun test. Toca la tarjeta "+" para subir tu primer PDF.
+  </div>
+</div>
+
+<div id="upload-screen">
+  <button class="back-link mono" id="back-to-library">&larr; Biblioteca</button>
+  <div class="brand mono">Folio</div>
+  <h1>Convierte cualquier PDF en tarjetas de examen</h1>
+  <p class="sub">Sube tus apuntes y genera preguntas tipo test para repasar antes del examen.</p>
+
+  <label class="dropzone" id="dropzone">
+    <span class="icon mono">Arrastra un PDF o toca aqui</span>
+    <span class="filename" id="filename-display">Ningun archivo seleccionado</span>
+    <input type="file" id="file-input" accept="application/pdf">
+  </label>
+
+  <button class="primary" id="generate-btn" disabled>Generar tarjetas</button>
+  <div id="status-line" class="mono"></div>
+  <div id="error-line"></div>
+</div>
+
+<div id="study-screen">
+  <button class="back-link mono" id="back-to-library-study">&larr; Biblioteca</button>
+  <div class="deck-header"><div class="stamp mono" id="deck-stamp">Q 01/08</div></div>
+  <div class="deck" id="deck"><!-- la tarjeta activa se inserta aqui por JS --></div>
+  <div class="swipe-buttons">
+    <button class="swipe-btn false" id="btn-false" title="Falso">✕</button>
+    <button class="swipe-btn true" id="btn-true" title="Verdadero">✓</button>
+  </div>
+</div>
+
+<script>
+const API = "/api";
+
+const dropzone = document.getElementById("dropzone");
+const fileInput = document.getElementById("file-input");
+const filenameDisplay = document.getElementById("filename-display");
+const generateBtn = document.getElementById("generate-btn");
+const statusLine = document.getElementById("status-line");
+const errorLine = document.getElementById("error-line");
+const libraryScreen = document.getElementById("library-screen");
+const libraryGrid = document.getElementById("library-grid");
+const libraryEmpty = document.getElementById("library-empty");
+const uploadScreen = document.getElementById("upload-screen");
+const studyScreen = document.getElementById("study-screen");
+const deck = document.getElementById("deck");
+const deckStamp = document.getElementById("deck-stamp");
+const btnFalse = document.getElementById("btn-false");
+const btnTrue = document.getElementById("btn-true");
+
+let selectedFile = null;
+
+// ---------- Navegacion entre las 3 pantallas ----------
+
+function showScreen(screen) {
+  [libraryScreen, uploadScreen, studyScreen].forEach(s => s.classList.remove("active"));
+  screen.classList.add("active");
+}
+
+function resetUploadForm() {
+  selectedFile = null;
+  fileInput.value = "";
+  filenameDisplay.textContent = "Ningun archivo seleccionado";
+  generateBtn.disabled = true;
+  statusLine.textContent = "";
+  errorLine.textContent = "";
+}
+
+document.getElementById("back-to-library").addEventListener("click", () => {
+  resetUploadForm();
+  showLibrary();
+});
+document.getElementById("back-to-library-study").addEventListener("click", () => {
+  btnFalse.style.display = "";
+  btnTrue.style.display = "";
+  showLibrary();
+});
+
+// ---------- Pantalla de biblioteca (tarjetas cuadradas clicables) ----------
+
+async function showLibrary() {
+  showScreen(libraryScreen);
+  await loadLibrary();
+}
+
+async function loadLibrary() {
+  let docs = [];
+  try {
+    const res = await fetch(`${API}/documents`);
+    if (res.ok) docs = await res.json();
+  } catch (err) {
+    // sin conexion: se muestra solo la tarjeta de "+"
+  }
+
+  libraryGrid.innerHTML = "";
+  libraryEmpty.style.display = docs.length === 0 ? "block" : "none";
+
+  const addCard = document.createElement("button");
+  addCard.className = "doc-card add-card";
+  addCard.innerHTML = `<span class="plus">+</span><span class="doc-name">Nuevo PDF</span>`;
+  addCard.addEventListener("click", () => {
+    resetUploadForm();
+    showScreen(uploadScreen);
+  });
+  libraryGrid.appendChild(addCard);
+
+  docs.forEach(doc => libraryGrid.appendChild(buildDocCard(doc)));
+}
+
+function buildDocCard(doc) {
+  const card = document.createElement("button");
+  card.className = "doc-card";
+
+  const statusLabel = { ready: "Listo", processing: "Generando...", failed: "Fallo" }[doc.status] || doc.status;
+  const meta = doc.status === "processing" && doc.progress_total > 0
+    ? `${doc.progress_done}/${doc.progress_total} tarjetas`
+    : new Date(doc.created_at + "Z").toLocaleDateString();
+
+  card.innerHTML = `
+    <span class="doc-icon ${doc.status}">${statusLabel}</span>
+    <span class="doc-name">${doc.title || doc.filename}</span>
+    <span class="doc-meta mono">${meta}</span>
+  `;
+  card.addEventListener("click", () => openDocument(doc.id));
+  return card;
+}
+
+async function openDocument(documentId) {
+  showScreen(studyScreen);
+  btnFalse.style.display = "none";
+  btnTrue.style.display = "none";
+  deckStamp.textContent = "Cargando...";
+  deck.innerHTML = "";
+  try {
+    const res = await fetch(`${API}/documents/${documentId}`);
+    const doc = await res.json();
+    if (doc.status === "ready") {
+      await loadQuestions(documentId);
+    } else if (doc.status === "processing") {
+      await pollStatus(documentId);
+    } else {
+      throw new Error(doc.error || "Este documento fallo al generarse.");
+    }
+  } catch (err) {
+    deckStamp.textContent = "Error";
+    deck.innerHTML = `<div class="summary-card"><div class="eyebrow">Error</div><div class="statement-text">${err.message}</div><button class="primary" id="open-err-back-btn">Volver a mi biblioteca</button></div>`;
+    document.getElementById("open-err-back-btn").addEventListener("click", showLibrary);
+  }
+}
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    selectedFile = fileInput.files[0];
+    filenameDisplay.textContent = selectedFile.name;
+    generateBtn.disabled = false;
+  }
+});
+
+["dragover", "dragenter"].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.add("drag-over"); })
+);
+["dragleave", "drop"].forEach(evt =>
+  dropzone.addEventListener(evt, e => { e.preventDefault(); dropzone.classList.remove("drag-over"); })
+);
+dropzone.addEventListener("drop", e => {
+  const f = e.dataTransfer.files[0];
+  if (f && f.type === "application/pdf") {
+    selectedFile = f;
+    filenameDisplay.textContent = f.name;
+    generateBtn.disabled = false;
+  }
+});
+
+generateBtn.addEventListener("click", async () => {
+  if (!selectedFile) return;
+  generateBtn.disabled = true;
+  errorLine.textContent = "";
+  statusLine.textContent = "Subiendo documento...";
+
+  try {
+    const form = new FormData();
+    form.append("file", selectedFile);
+    const res = await fetch(`${API}/documents`, { method: "POST", body: form });
+    if (!res.ok) throw new Error("Fallo al subir el documento.");
+    const data = await res.json();
+
+    if (data.cached && data.status === "ready") {
+      statusLine.textContent = "Documento ya procesado antes, cargando...";
+      showScreen(studyScreen);
+      await loadQuestions(data.document_id);
+      return;
+    }
+
+    statusLine.textContent = "Generando preguntas con IA...";
+    showScreen(studyScreen);
+    btnFalse.style.display = "none";
+    btnTrue.style.display = "none";
+    deckStamp.textContent = "Generando...";
+    deck.innerHTML = "";
+    await pollStatus(data.document_id);
+  } catch (err) {
+    if (studyScreen.classList.contains("active")) {
+      deckStamp.textContent = "Error";
+      deck.innerHTML = `<div class="summary-card"><div class="eyebrow">Error</div><div class="statement-text">${err.message}</div><button class="primary" id="err-back-btn">Volver a mi biblioteca</button></div>`;
+      document.getElementById("err-back-btn").addEventListener("click", showLibrary);
+    } else {
+      errorLine.textContent = err.message;
+    }
+    generateBtn.disabled = false;
+    statusLine.textContent = "";
+  }
+});
+
+async function pollStatus(documentId) {
+  const poll = async () => {
+    const res = await fetch(`${API}/documents/${documentId}`);
+    const doc = await res.json();
+
+    if (doc.status === "ready") {
+      statusLine.textContent = "Listo.";
+      await loadQuestions(documentId);
+    } else if (doc.status === "failed") {
+      throw new Error(doc.error || "No se pudieron generar las preguntas.");
+    } else {
+      renderProgress(doc.progress_done || 0, doc.progress_total || 0);
+      setTimeout(poll, 1800);
+    }
+  };
+  renderProgress(0, 0);
+  await poll();
+}
+
+function renderProgress(done, total) {
+  const pct = total > 0 ? Math.min(100, Math.round((done / total) * 100)) : 0;
+  deckStamp.textContent = total > 0 ? `Generando ${done}/${total}` : "Generando...";
+  deck.innerHTML = `
+    <div class="swipe-card progress-card">
+      <div class="progress-spinner"></div>
+      <div class="eyebrow">Generando tarjetas con IA</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${pct}%"></div></div>
+      <div class="progress-label mono">${total > 0 ? `${done}/${total} tarjetas` : "Empezando..."}</div>
+    </div>
+  `;
+}
+
+async function loadQuestions(documentId) {
+  const res = await fetch(`${API}/documents/${documentId}/questions`);
+  if (!res.ok) throw new Error("No se pudieron cargar las preguntas.");
+  const questions = await res.json();
+  if (questions.length === 0) throw new Error("El documento no genero ninguna pregunta.");
+  renderStudy(questions);
+}
+
+// ---------- Pantalla de estudio: mazo swipe verdadero/falso ----------
+
+function renderStudy(questions) {
+  showScreen(studyScreen);
+  btnFalse.style.display = "";
+  btnTrue.style.display = "";
+
+  let index = 0;
+  let correctCount = 0;
+  const total = questions.length;
+
+  showCard();
+
+  function showCard() {
+    if (index >= total) return showSummary();
+
+    const q = questions[index];
+    deckStamp.textContent = `Q ${String(index + 1).padStart(2, "0")}/${String(total).padStart(2, "0")}`;
+
+    deck.innerHTML = "";
+    const card = document.createElement("div");
+    card.className = "swipe-card";
+    card.innerHTML = `
+      <div class="overlay-label overlay-true mono">VERDADERO</div>
+      <div class="overlay-label overlay-false mono">FALSO</div>
+      <div class="eyebrow">¿Verdadero o falso?</div>
+      <div class="statement-text">${q.statement}</div>
+      <div class="correct-toast">
+        <div class="check">✓</div>
+        <div class="label mono">Correcto</div>
+      </div>
+      <div class="feedback-panel">
+        <div class="feedback-verdict mono"></div>
+        <div class="feedback-fragment"></div>
+        <div class="feedback-continue mono">Toca para continuar &rarr;</div>
+      </div>
+    `;
+    deck.appendChild(card);
+    attachInteractions(card, q);
+  }
+
+  function attachInteractions(card, q) {
+    const overlayTrue = card.querySelector(".overlay-true");
+    const overlayFalse = card.querySelector(".overlay-false");
+    const toast = card.querySelector(".correct-toast");
+    const feedback = card.querySelector(".feedback-panel");
+
+    let startX = 0, startY = 0, dx = 0, dragging = false, resolved = false;
+
+    const onPointerDown = (e) => {
+      if (resolved) return;
+      dragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      card.setPointerCapture(e.pointerId);
+    };
+
+    const onPointerMove = (e) => {
+      if (!dragging || resolved) return;
+      dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const rotate = dx / 18;
+      card.style.transform = `translate(${dx}px, ${dy}px) rotate(${rotate}deg)`;
+      const strength = Math.min(Math.abs(dx) / 100, 1);
+      overlayTrue.style.opacity = dx > 0 ? strength : 0;
+      overlayFalse.style.opacity = dx < 0 ? strength : 0;
+    };
+
+    const onPointerUp = () => {
+      if (!dragging || resolved) return;
+      dragging = false;
+      const THRESHOLD = 100;
+      if (dx > THRESHOLD) decide(true);
+      else if (dx < -THRESHOLD) decide(false);
+      else {
+        card.classList.add("snap-back");
+        card.style.transform = "translate(0,0) rotate(0deg)";
+        overlayTrue.style.opacity = 0;
+        overlayFalse.style.opacity = 0;
+      }
+      dx = 0;
+    };
+
+    card.addEventListener("pointerdown", onPointerDown);
+    card.addEventListener("pointermove", onPointerMove);
+    card.addEventListener("pointerup", onPointerUp);
+    card.addEventListener("pointercancel", onPointerUp);
+
+    btnFalse.onclick = () => { if (!resolved) decide(false); };
+    btnTrue.onclick = () => { if (!resolved) decide(true); };
+
+    function decide(guessedTrue) {
+      resolved = true;
+      const isCorrect = guessedTrue === q.is_true;
+
+      submitAnswer(q.id, isCorrect);
+
+      if (isCorrect) {
+        correctCount++;
+        if (navigator.vibrate) navigator.vibrate(30);
+        toast.classList.add("show");
+        card.classList.add("fly-out");
+        card.style.transform = `translate(${guessedTrue ? 600 : -600}px, -40px) rotate(${guessedTrue ? 20 : -20}deg)`;
+        setTimeout(() => { index++; showCard(); }, 380);
+      } else {
+        if (navigator.vibrate) navigator.vibrate([20, 40, 20]);
+        // vuelve al centro y muestra el fragmento en vez de avanzar solo
+        card.classList.add("snap-back");
+        card.style.transform = "translate(0,0) rotate(0deg)";
+        overlayTrue.style.opacity = 0;
+        overlayFalse.style.opacity = 0;
+
+        feedback.querySelector(".feedback-verdict").textContent =
+          `Era ${q.is_true ? "verdadero" : "falso"}`;
+        feedback.querySelector(".feedback-fragment").textContent =
+          q.explanation || "(sin fragmento disponible)";
+        feedback.classList.add("show");
+
+        feedback.addEventListener("click", () => {
+          index++;
+          showCard();
+        }, { once: true });
+      }
+    }
+  }
+
+  function submitAnswer(questionId, isCorrect) {
+    fetch(`${API}/questions/${questionId}/answer`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_correct: isCorrect }),
+    }).catch(() => {});
+  }
+
+  function showSummary() {
+    deckStamp.textContent = "Resultado";
+    btnFalse.style.display = "none";
+    btnTrue.style.display = "none";
+    deck.innerHTML = `
+      <div class="summary-card">
+        <div class="eyebrow">Resultado</div>
+        <div class="summary-score mono">${Math.round((correctCount / total) * 100)}%</div>
+        <div class="summary-label">respuestas correctas (${correctCount}/${total})</div>
+        <button class="primary" id="summary-repeat-btn">Repetir test</button>
+        <br>
+        <button class="secondary" id="summary-back-btn">Volver a mi biblioteca</button>
+      </div>
+    `;
+    document.getElementById("summary-back-btn").addEventListener("click", showLibrary);
+    document.getElementById("summary-repeat-btn").addEventListener("click", () => {
+      // Reinicia el mazo sin volver a pedir las preguntas al backend: ya las tenemos en memoria.
+      index = 0;
+      correctCount = 0;
+      btnFalse.style.display = "";
+      btnTrue.style.display = "";
+      showCard();
+    });
+  }
+}
+
+// ---------- Arranque: mostramos la biblioteca al entrar ----------
+showLibrary();
+</script>
+
+</body>
+</html>
