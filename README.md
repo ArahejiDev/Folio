@@ -4,7 +4,14 @@
 
 Upload your notes, books or papers and Folio generates statements about the key concepts. Swipe right for *true*, left for *false*, and get instant feedback with the exact snippet from your document that justifies the answer.
 
->  This is a **prototype**. It is designed to be easy to run and easy to migrate to production (see [Roadmap to production](#roadmap-to-production)), but it is not production-ready as is.
+>  This is a **prototype**. It is designed to be easy to run and easy to migrate to production, but it is not production-ready as is.
+
+## Screenshots
+
+| Library | Study deck |
+|---------|------------|
+| <img src="docs/screenshots/library.png" alt="Folio library screen showing the New PDF button and a ready document" width="480"> | <img src="docs/screenshots/study-deck.png" alt="Folio swipe deck showing a True/False card with the cross and check buttons" width="300"> |
+| Upload a new PDF or reopen a previously processed document. | Swipe right for *true*, left for *false*, or use the ✕ / ✓ buttons. |
 
 ## Features
 
@@ -65,6 +72,8 @@ The frontend polls the document status and shows progress until it is ready.
 ├── frontend/
 │   ├── index.html         # App: library, upload and swipe study deck
 │   └── landing.html       # Marketing landing page
+├── docs/
+│   └── screenshots/       # Images used in this README
 ├── Dockerfile
 ├── .dockerignore
 ├── .env.example           # Template for your environment variables
@@ -156,3 +165,25 @@ Interactive docs are available at <http://localhost:8000/docs> (FastAPI Swagger 
 - **documents** – `id`, `content_hash` (unique), `filename`, `title`, `status`, `error`, `progress_done`, `progress_total`, `created_at`
 - **questions** – `id`, `document_id`, `statement`, `is_true`, `explanation`, `order_index`
 - **answers** – `id`, `question_id`, `is_correct`, `answered_at`
+
+## Roadmap to production
+
+Places in the code marked with `# PROD:` show what to change:
+
+- [ ] SQLite → **Postgres**
+- [ ] `BackgroundTasks` → **Celery + Redis** worker, scaled separately from the web process
+- [ ] Local `uploads/` → **S3 / Cloudflare R2**
+- [ ] Restrict **CORS** (currently `allow_origins=["*"]`) to the real frontend domain
+- [ ] Add **authentication** and per-user document filtering (documents are currently global)
+- [ ] Add **rate limiting** and upload size limits
+- [ ] Real **chunking** instead of truncating to ~40k characters
+- [ ] Validate the `/answer` payload with a Pydantic model
+
+## Security notes
+
+- The API key is read **only** from the `GROQ_API_KEY` environment variable. `.env` is git-ignored and docker-ignored; commit only `.env.example`.
+- If you ever commit a key by mistake, **revoke it** in the Groq console immediately; removing it from git history is not enough.
+
+## License
+
+No license has been specified yet. Add a `LICENSE` file (e.g. MIT) before publishing if you want others to be able to use the code.
